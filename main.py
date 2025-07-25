@@ -1,8 +1,10 @@
 from groq import Groq
 from dotenv import load_dotenv
 import os
-from litellm import completion, speech
+from litellm import speech
 import litellm
+from google import genai
+from google.genai import types
 
 load_dotenv()
 
@@ -18,24 +20,19 @@ def stt(audio_file):
 
     transcript_text = transcript.text
     print("text", transcript_text)
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            config=types.GenerateContentConfig(
+                system_instruction="You are a cat question-answering bot. Answer to the user's message precisely and politely."),
+            contents=transcript_text,
+            max_tokens = 100
+        )
+        return response.text
+    except Exception as e:
+        return ("error",e)
 
-    response = completion(
-        model="groq/llama-3.1-8b-instant", 
-        messages=[
-            {"role": "user", "content": transcript_text}
-        ],
-        stream=True
-    )
-    full_response = ""
-    for chunk in response:
-        content_part = chunk["choices"][0]["delta"].get("content", "")
-        # print(content_part, end="", flush=True)
-        full_response += content_part
-
-    print("Content Part is ", content_part)
-    return content_part
-
-def tts(chunk):
+def tts(text): 
     print("tts loading")
 
     if not isinstance(text, str):
@@ -44,11 +41,13 @@ def tts(chunk):
     tts = litellm.speech(
         model = "groq/playai-tts",
         voice = "Arista-PlayAI",
-        input = chunk,
+        input = text,
         api_key = api_key,
         response_format = "wav",
         speech_file_path = "speech.wav"
     )
+
+    return {"speech.wav", text}
 
 def voice(audio_file):
     text = stt(audio_file)
@@ -57,4 +56,4 @@ def voice(audio_file):
 
 if __name__ == "__main__":
     audio_file = open("audio_test.mp3", "rb")
-    print(f"{voice(audio_file)}")
+    print(f"{voice(audio_file)}") 
